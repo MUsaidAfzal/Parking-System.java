@@ -1,0 +1,14 @@
+# Maven build output
+target/
+
+# IntelliJ settings
+.idea/
+*.iml
+out/
+
+# Other editors and system files
+.vscode/
+.DS_Store
+
+# Logs
+*.log

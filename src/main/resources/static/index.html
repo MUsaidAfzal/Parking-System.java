@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parking spaces</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 860px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .6rem 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .ok {
+            color: #0a7d2c;
+        }
+
+        .no {
+            color: #b3261e;
+        }
+
+        input, button {
+            padding: .4rem .6rem;
+            margin: .2rem;
+        }
+
+        #msg {
+            color: #b3261e;
+            min-height: 1.2em;
+        }
+
+        th, td {
+            padding: .3rem .6rem;
+            text-align: left;
+        }
+
+        #layout {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+
+        main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        aside {
+            width: 14rem;
+            padding: .8rem;
+            border: 1px solid #e0c36a;
+            background: #fff8dc;
+            border-radius: 6px;
+        }
+
+        .card {
+            display: inline-block;
+            text-align: center;
+            padding: 1rem 1.4rem;
+            margin: .4rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #fff;
+        }
+
+        .card:hover {
+            border-color: #333;
+        }
+
+        .card .price {
+            display: block;
+            margin-top: .3rem;
+            color: #555;
+        }
+
+        .note {
+            color: #555;
+            font-size: .9rem;
+        }
+
+        @media (max-width: 600px) {
+            #layout {
+                flex-direction: column-reverse;
+            }
+
+            aside {
+                width: auto;
+            }
+        }
+
+        #ticket {
+            border: 1px dashed #333;
+            padding: 1rem 1.4rem;
+            max-width: 26rem;
+            background: #fff;
+        }
+
+        .actions {
+            margin-top: 1rem;
+        }
+
+        .scroll {
+            overflow-x: auto;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #ticket, #ticket * {
+                visibility: visible;
+            }
+
+            #ticket {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+
+        #payBox {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+<h1>Parking spaces</h1>
+<p id="msg"></p>
+
+
+<div id="login">
+    <input id="u" placeholder="Username">
+    <input id="p" type="password" placeholder="Password">
+    <button onclick="auth('login')">Log in</button>
+    <button onclick="auth('register')">Register</button>
+</div>
+
+<div id="app" hidden>
+    <p>Signed in as <b id="who"></b>
+        <button onclick="logout()">Log out</button>
+    </p>
+
+    <div id="layout">
+        <main>
+            <div id="receipt" hidden>
+                <div id="ticket">
+                    <h2>Parking receipt</h2>
+                    <table>
+                        <tr>
+                            <th>Vehicle type</th>
+                            <td id="rVehicle"></td>
+                        </tr>
+                        <tr>
+                            <th>Slot</th>
+                            <td id="rSlot"></td>
+                        </tr>
+                        <tr>
+                            <th>Check-in</th>
+                            <td id="rIn"></td>
+                        </tr>
+                        <tr>
+                            <th>Check-out</th>
+                            <td id="rOut"></td>
+                        </tr>
+                        <tr>
+                            <th>Time charged</th>
+                            <td id="rHours"></td>
+                        </tr>
+                        <tr>
+                            <th>Total cost</th>
+                            <td><b id="rTotal"></b></td>
+                        </tr>
+                    </table>
+                    <p id="rPay"></p>
+                </div>
+
+                <div id="payBox" hidden>
+                    <h3>Choose a payment option</h3>
+                    <button onclick="payCash()">1. Cash</button>
+                    <button onclick="showPay('card')">2. Credit / Debit Card</button>
+                    <button onclick="showPay('online')">3. Online Payment</button>
+
+                    <div id="cardForm" hidden>
+                        <input id="cardNo" placeholder="16-digit card number" maxlength="19" inputmode="numeric">
+                        <button onclick="payCard()">Pay by card</button>
+                    </div>
+                    <div id="onlineForm" hidden>
+                        <input id="phone" placeholder="11-digit phone number" maxlength="11" inputmode="numeric">
+                        <button onclick="payOnline()">Pay online</button>
+                    </div>
+                    <p class="note">Demo payment only: no real money is taken.</p>
+                </div>
+
+                <p class="actions">
+                    <button id="print" onclick="window.print()" hidden>Print ticket</button>
+                    <button id="done" onclick="doneReceipt()" hidden>Done</button>
+                </p>
+            </div>
+
+            <div id="mine" hidden>
+                <h2>Your slot: <span id="mySlot"></span></h2>
+                <p>Time in: <b id="timeIn"></b></p>
+                <p class="note">Logging out does not end your parking. Press Check out when you leave.</p>
+                <button onclick="releaseMine()">Check out</button>
+            </div>
+
+            <div id="types" hidden>
+                <h2>Choose your vehicle type</h2>
+                <div id="typeCards"></div>
+            </div>
+
+            <div id="slots" hidden>
+                <p id="back">
+                    <button onclick="changeType()">&larr; Change vehicle type</button>
+                </p>
+                <div id="list"></div>
+            </div>
+
+            <div id="admin" hidden>
+                <h3>Manage slots</h3>
+                <input id="n" placeholder="New slot number">
+                <select id="newType">
+                    <option value="CAR">Car</option>
+                    <option value="BIKE">Bike</option>
+                    <option value="TRUCK">Truck</option>
+                </select>
+                <button onclick="addSlot()">Add slot</button>
+                <h3>Usage records</h3>
+                <p id="totals"></p>
+                <div class="scroll">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Slot</th>
+                            <th>User</th>
+                            <th>Vehicle</th>
+                            <th>Time in</th>
+                            <th>Time out</th>
+                            <th>Duration</th>
+                            <th>Hours</th>
+                            <th>Amount</th>
+                            <th>Payment</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="records"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <aside id="notice" hidden>
+            <b>Please note</b>
+            <p>The minimum charge is 1 hour. Any time beyond a full hour is charged as the next full hour.</p>
+        </aside>
+    </div>
+</div>
+
+<script>
+    let token = null, me = "", role = "";
+    let mySlotId = null;
+    let chosenType = null;
+    let receipt = null;
+    const $ = id => document.getElementById(id);
+
+    async function api(path, method = "GET", body) {
+        const res = await fetch("/api" + path, {
+            method,
+            headers: {"Content-Type": "application/json", ...(token && {Authorization: "Bearer " + token})},
+            body: body && JSON.stringify(body)
+        });
+        if (res.status === 401 && token) logout();
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            $("msg").textContent = err.message || "Request failed (" + res.status + ")";
+            return null;
+        }
+        $("msg").textContent = "";
+        return res.json().catch(() => ({}));
+    }
+
+    async function auth(kind) {
+        const creds = {username: $("u").value, password: $("p").value};
+        if (kind === "register" && !(await api("/auth/register", "POST", creds))) return;
+        const t = await api("/auth/login", "POST", creds);
+        if (!t) return;
+        token = t.token;
+        role = t.role;
+        me = creds.username;
+        $("login").hidden = true;
+        $("app").hidden = false;
+        $("admin").hidden = role !== "ADMIN";
+        $("notice").hidden = role === "ADMIN";
+        $("who").textContent = me + " (" + role + ")";
+        const u = await api("/payments/unpaid");
+        if (u && u.id) {
+            receipt = u;
+            showReceipt(u);
+        }
+        load();
+    }
+
+    function logout() {
+        token = null;
+        chosenType = null;
+        receipt = null;
+        $("app").hidden = true;
+        $("login").hidden = false;
+    }
+
+    function el(tag, text, cls) {
+        const e = document.createElement(tag);
+        e.textContent = text;
+        if (cls) e.className = cls;
+        return e;
+    }
+
+    function btn(label, action) {
+        const b = el("button", label);
+        b.onclick = async () => {
+            if (await action()) load();
+        };
+        return b;
+    }
+
+    const fmt = iso => new Date(iso).toLocaleString("en-GB", {hour12: true});
+
+    function duration(from, to) {
+        const mins = Math.floor(((to ? new Date(to) : new Date()) - new Date(from)) / 60000);
+        return Math.floor(mins / 60) + "h " + (mins % 60) + "m" + (to ? "" : " (ongoing)");
+    }
+
+    const cap = t => t.charAt(0) + t.slice(1).toLowerCase();
+
+    function changeType() {
+        chosenType = null;
+        load();
+    }
+
+    function paymentText(r) {
+        if (!r.paymentMethod) return "Payment: not yet paid";
+        if (r.paymentMethod === "CASH") return "Payment: Cash, to be paid at the counter";
+        const how = r.paymentMethod === "CARD"
+            ? "Card ending " + r.paymentLast4
+            : "Online (phone ending " + r.paymentLast4 + ")";
+        return "Payment: " + how + " - Paid";
+    }
+
+    function showReceipt(r) {
+        $("rVehicle").textContent = cap(r.vehicleType);
+        $("rSlot").textContent = r.slotNumber;
+        $("rIn").textContent = fmt(r.timeIn);
+        $("rOut").textContent = fmt(r.timeOut);
+        $("rHours").textContent = r.hoursCharged + " hour(s) at Rs. " + r.ratePerHour + " per hour";
+        $("rTotal").textContent = "Rs. " + r.amount;
+        $("rPay").textContent = paymentText(r);
+        $("payBox").hidden = !!r.paymentMethod;
+        $("print").hidden = $("done").hidden = !r.paymentMethod;
+        $("cardNo").value = $("phone").value = "";
+        showPay("");
+    }
+
+    function doneReceipt() {
+        receipt = null;
+        load();
+    }
+
+    function showPay(which) {
+        $("cardForm").hidden = which !== "card";
+        $("onlineForm").hidden = which !== "online";
+    }
+
+    async function payWith(method, body) {
+        const r = await api(`/payments/${receipt.id}/${method}`, "POST", body);
+        if (r) {
+            receipt = r;
+            showReceipt(r);
+        }
+    }
+
+    const payCash = () => payWith("cash");
+    const payCard = () => payWith("card", {cardNumber: $("cardNo").value.replace(/[\s-]/g, "")});
+    const payOnline = () => payWith("online", {phone: $("phone").value.replace(/[\s-]/g, "")});
+
+    async function loadTypes() {
+        const types = await api("/vehicle-types");
+        if (!types) return;
+        const box = $("typeCards");
+        box.replaceChildren();
+        for (const t of types) {
+            const card = el("div", "", "card");
+            card.append(el("b", cap(t.type)), el("span", "Rs. " + t.ratePerHour + " / hour", "price"));
+            card.onclick = () => {
+                chosenType = t.type;
+                load();
+            };
+            box.append(card);
+        }
+    }
+
+    async function load() {
+        $("receipt").hidden = !receipt;
+        if (receipt) {
+            $("mine").hidden = $("types").hidden = $("slots").hidden = true;
+            return;
+        }
+        const m = await api("/slots/mine");
+        if (!m) return;
+        const has = !!m.slotNumber;
+        const admin = role === "ADMIN";
+        mySlotId = m.id;
+        $("mine").hidden = !has;
+        if (has) {
+            $("mySlot").textContent = m.slotNumber;
+            $("timeIn").textContent = fmt(m.timeIn);
+        }
+        const pickType = !has && !admin && !chosenType;     // show the vehicle choice
+        const showList = admin || (!has && !!chosenType);   // show the slot list
+        $("types").hidden = !pickType;
+        $("slots").hidden = !showList;
+        $("back").hidden = admin;
+        if (pickType) await loadTypes();
+        if (showList) await loadList();
+        if (admin) loadRecords();
+    }
+
+    async function releaseMine() {
+        const r = await api(`/slots/${mySlotId}/release`, "POST");
+        if (!r) return;
+        chosenType = null;
+        receipt = r.amount !== undefined ? r : null;
+        if (receipt) showReceipt(receipt);
+        load();
+    }
+
+    async function loadList() {
+        const slots = await api(chosenType ? "/slots?type=" + chosenType : "/slots");
+        if (!slots) return;
+        const list = $("list");
+        list.replaceChildren();
+        for (const s of slots) {
+            const row = el("div", "", "slot"), info = el("span", ""), acts = el("span", "");
+            const label = s.available ? "Available" : s.occupied ? "Occupied" : "Out of service";
+            info.append(el("b", s.slotNumber), " ", el("small", cap(s.vehicleType)), " ",
+                el("span", label, s.available ? "ok" : "no"),
+                s.assignedTo ? " (" + s.assignedTo + ")" : "");
+            if (s.available) acts.append(btn("Assign", () => api(`/slots/${s.id}/assign`, "POST")));
+            if (role === "ADMIN") {
+                if (s.occupied) acts.append(btn("Release", () => api(`/slots/${s.id}/release`, "POST")));
+                else acts.append(btn(s.available ? "Disable" : "Enable", () => api(`/slots/${s.id}/availability?available=${!s.available}`, "PATCH")));
+                acts.append(btn("Delete", () => api(`/slots/${s.id}`, "DELETE")));
+            }
+            row.append(info, acts);
+            list.append(row);
+        }
+    }
+
+    function payLabel(r) {
+        if (!r.timeOut) return "-";
+        if (!r.paymentMethod) return "Not paid";
+        return cap(r.paymentMethod) + " - " + cap(r.paymentStatus);
+    }
+
+    async function loadRecords() {
+        const rows = await api("/slots/records");
+        if (!rows) return;
+        const body = $("records");
+        body.replaceChildren();
+        let collected = 0, outstanding = 0;
+        for (const r of rows) {
+            if (r.amount != null) {
+                if (r.paymentStatus === "PAID") collected += r.amount; else outstanding += r.amount;
+            }
+            const tr = document.createElement("tr");
+            tr.append(el("td", r.slotNumber), el("td", r.username),
+                el("td", r.vehicleType ? cap(r.vehicleType) : "-"),
+                el("td", fmt(r.timeIn)), el("td", r.timeOut ? fmt(r.timeOut) : "Still in"),
+                el("td", duration(r.timeIn, r.timeOut)),
+                el("td", r.hoursCharged ?? "-"),
+                el("td", r.amount != null ? "Rs. " + r.amount : "-"),
+                el("td", payLabel(r)));
+            const action = el("td", "");
+            if (r.paymentMethod === "CASH" && r.paymentStatus === "PENDING")
+                action.append(btn("Mark received", () => api(`/payments/${r.id}/received`, "PATCH")));
+            tr.append(action);
+            body.append(tr);
+        }
+        $("totals").textContent = "Collected: Rs. " + collected + "   |   Outstanding: Rs. " + outstanding;
+    }
+
+    async function addSlot() {
+        const body = {slotNumber: $("n").value, vehicleType: $("newType").value};
+        if (await api("/slots", "POST", body)) {
+            $("n").value = "";
+            load();
+        }
+    }
+</script>
+</body>
+</html>
+
