@@ -4,6 +4,7 @@ import com.parking.dto.Token;
 import com.parking.service.AuthService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    public record Credentials(@NotBlank String username, @NotBlank String password) { }
+    public record Credentials(@NotBlank String username, @NotBlank @Size(min=6) String password) { }
 
     private final AuthService auth;
 
