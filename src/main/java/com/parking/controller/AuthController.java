@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    public record Credentials(@NotBlank String username, @NotBlank @Size(min=6) String password) { }
+    public record Credentials(@NotBlank String username, @NotBlank @Size(min = 6, message = "Password size should be at least 6 characters!") String password) { }
 
     private final AuthService auth;
 
