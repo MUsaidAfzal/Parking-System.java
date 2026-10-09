@@ -28,8 +28,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/payments/*/received").hasRole("ADMIN")
                 .anyRequest().authenticated())
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((request, response, ex) -> writeError(response, 401, "Please log in first"))
-                        .accessDeniedHandler((request, response, ex) -> writeError(response, 403, "You are not allowed to do this")))
+                        .authenticationEntryPoint((_, response, _) -> writeError(response, 401, "Please log in first"))
+                        .accessDeniedHandler((_, response, _) -> writeError(response, 403, "You are not allowed to do this")))
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
